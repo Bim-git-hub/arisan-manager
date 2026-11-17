@@ -1,9 +1,9 @@
-"""Arisan Manager v1.0
+"""Arisan Manager v2.0
 
-VERSI UJI COBA: kode ini sengaja mengandung 4 bug untuk simulasi pengujian.
-Daftar lengkap bug ada di BUG_REPORT.md. Jangan dipakai untuk arisan sungguhan.
+Semua bug dari versi 1.0 sudah diperbaiki. Ringkasan perubahan bisa dilihat di
+halaman /changelog dan di BUG_REPORT.md.
 
-Jalankan:  python app.py   lalu buka http://127.0.0.1:5001
+Jalankan:  python app.py   lalu buka http://127.0.0.1:5002
 """
 import json
 import os
@@ -11,7 +11,64 @@ import random
 
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
-VERSI = "1.0"
+VERSI = "2.0"
+
+# Isi halaman /changelog. Potongan kode di bawah sama persis dengan kode di v1 dan v2.
+PERUBAHAN = [
+    {
+        "kode": "BUG-01",
+        "judul": "Pemenang yang sama bisa terpilih berkali-kali",
+        "tingkat": "Tinggi",
+        "gejala": "Setelah Ani menang di ronde 1, Ani masih bisa menang lagi di ronde berikutnya. "
+                  "Aturan inti arisan (setiap anggota menang satu kali) tidak berlaku.",
+        "penyebab": "Undian memilih dari seluruh daftar anggota tanpa menyaring yang sudah menang.",
+        "perbaikan": "Kandidat undian hanya anggota yang belum pernah menang.",
+        "sebelum": 'kandidat = data["anggota"]',
+        "sesudah": 'kandidat = [a for a in data["anggota"] if not a["menang"]]',
+        "uji": "test_bug01_pemenang_tidak_berulang",
+    },
+    {
+        "kode": "BUG-02",
+        "judul": "Iuran nol atau negatif diterima",
+        "tingkat": "Sedang",
+        "gejala": "Mengisi iuran dengan -50000 tersimpan begitu saja, sehingga kas ronde menjadi negatif.",
+        "penyebab": "Input hanya diubah menjadi angka bulat, tanda dan batas nilainya tidak diperiksa.",
+        "perbaikan": "Nominal harus lebih dari 0. Nilai lain ditolak dengan pesan yang menjelaskan alasannya.",
+        "sebelum": 'data["iuran"] = nominal',
+        "sesudah": 'if nominal <= 0:\n'
+                   '    flash("Nominal iuran harus lebih dari 0.", "error")\n'
+                   '    return redirect(url_for("beranda"))\n'
+                   'data["iuran"] = nominal',
+        "uji": "test_bug02_iuran_nol_atau_negatif_ditolak",
+    },
+    {
+        "kode": "BUG-03",
+        "judul": "Nama anggota bisa menyisipkan HTML atau skrip (XSS)",
+        "tingkat": "Tinggi",
+        "gejala": "Anggota bernama <script>alert(1)</script> membuat skrip berjalan di browser setiap "
+                  "orang yang membuka halaman.",
+        "penyebab": "Template menampilkan nama dengan filter safe, sehingga escape otomatis Jinja2 dimatikan.",
+        "perbaikan": "Filter safe dihapus. Nama tampil sebagai teks biasa, tanda kurung sudut diubah menjadi entitas HTML.",
+        "sebelum": "{{ a.nama|safe }}",
+        "sesudah": "{{ a.nama }}",
+        "uji": "test_bug03_nama_html_di_escape",
+    },
+    {
+        "kode": "BUG-04",
+        "judul": "Undian tanpa kandidat membuat server error 500",
+        "tingkat": "Sedang",
+        "gejala": "Menekan Undi pemenang saat daftar anggota masih kosong menampilkan halaman Internal Server Error.",
+        "penyebab": "random.choice dipanggil pada daftar kosong dan melempar IndexError.",
+        "perbaikan": "Kandidat diperiksa dulu. Jika kosong, pengguna mendapat pesan yang menjelaskan keadaannya "
+                     "(belum ada anggota, atau semua sudah menang).",
+        "sebelum": "pemenang = random.choice(kandidat)",
+        "sesudah": 'if not kandidat:\n'
+                   '    flash("...", "error")\n'
+                   '    return redirect(url_for("beranda"))\n'
+                   'pemenang = random.choice(kandidat)',
+        "uji": "test_bug04_undi_tanpa_anggota_tidak_crash",
+    },
+]
 
 
 def rupiah(angka):
@@ -27,7 +84,7 @@ def create_app(data_file=None):
         os.path.dirname(os.path.abspath(__file__)), "data.json"
     )
     app.add_template_filter(rupiah, "rupiah")
-    app.jinja_env.globals.update(VERSI=VERSI, ADA_CHANGELOG=False)
+    app.jinja_env.globals.update(VERSI=VERSI, ADA_CHANGELOG=True)
 
     # ---------- penyimpanan sederhana (file JSON) ----------
     def muat():
@@ -57,6 +114,10 @@ def create_app(data_file=None):
         data = muat()
         return render_template("index.html", data=data, kas=hitung_kas(data))
 
+    @app.get("/changelog")
+    def changelog():
+        return render_template("changelog.html", perubahan=PERUBAHAN)
+
     @app.post("/iuran")
     def atur_iuran():
         data = muat()
@@ -65,7 +126,10 @@ def create_app(data_file=None):
         except (KeyError, ValueError):
             flash("Nominal iuran harus berupa angka bulat.", "error")
             return redirect(url_for("beranda"))
-        # BUG #2: nominal nol atau negatif tidak diperiksa
+        # PERBAIKAN BUG-02: nominal harus positif
+        if nominal <= 0:
+            flash("Nominal iuran harus lebih dari 0.", "error")
+            return redirect(url_for("beranda"))
         data["iuran"] = nominal
         simpan(data)
         flash(f"Iuran diatur menjadi {rupiah(nominal)} per anggota.", "ok")
@@ -106,9 +170,15 @@ def create_app(data_file=None):
     @app.post("/undi")
     def undi():
         data = muat()
-        # BUG #1: kandidat adalah SEMUA anggota, termasuk yang sudah pernah menang
-        kandidat = data["anggota"]
-        # BUG #4: kandidat tidak diperiksa kosong, random.choice([]) -> IndexError (HTTP 500)
+        # PERBAIKAN BUG-01: hanya anggota yang belum pernah menang
+        kandidat = [a for a in data["anggota"] if not a["menang"]]
+        # PERBAIKAN BUG-04: tangani keadaan tanpa kandidat
+        if not kandidat:
+            if not data["anggota"]:
+                flash("Belum ada anggota. Tambahkan anggota dulu sebelum mengundi.", "error")
+            else:
+                flash("Semua anggota sudah pernah menang. Putaran arisan ini selesai.", "error")
+            return redirect(url_for("beranda"))
         pemenang = random.choice(kandidat)
 
         kas = hitung_kas(data)
@@ -126,4 +196,4 @@ def create_app(data_file=None):
 
 
 if __name__ == "__main__":
-    create_app().run(port=5001, debug=True)
+    create_app().run(port=5002, debug=True)

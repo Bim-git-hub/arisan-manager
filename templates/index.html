@@ -16,8 +16,7 @@
     <ul class="daftar">
       {% for a in data.anggota %}
       <li class="baris">
-        {# BUG #3: nama ditampilkan dengan filter safe sehingga HTML tidak di-escape #}
-        <span class="nama">{{ a.nama|safe }}</span>
+        <span class="nama">{{ a.nama }}</span>
         {% if a.menang %}<span class="stempel">Sudah menang</span>{% endif %}
         {% if a.bayar %}<span class="pil pil-lunas">Lunas</span>{% else %}<span class="pil pil-belum">Belum bayar</span>{% endif %}
         <form method="post" action="{{ url_for('ubah_bayar', anggota_id=a.id) }}">
@@ -65,8 +64,7 @@
         {% for r in data.riwayat|reverse %}
         <li class="tiket">
           <span class="tiket-ronde" aria-label="Ronde {{ r.ronde }}">{{ r.ronde }}</span>
-          {# BUG #3: nama pemenang juga memakai filter safe #}
-          <span class="tiket-nama">{{ r.nama|safe }}</span>
+          <span class="tiket-nama">{{ r.nama }}</span>
           <span class="tiket-kas">Membawa pulang {{ r.kas|rupiah }}</span>
         </li>
         {% endfor %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block judul %}Perubahan v1 ke v2{% endblock %}
+{% block isi %}
+<h1>Yang berubah dari versi 1.0 ke 2.0</h1>
+<p class="pengantar">
+  Versi 1.0 sengaja dirilis dengan {{ perubahan|length }} bug untuk bahan simulasi pengujian.
+  Versi 2.0 memperbaiki semuanya. Setiap perbaikan punya uji otomatis di <code>test_bugs.py</code>
+  yang gagal di v1 dan lolos di v2.
+</p>
+
+<ul class="ringkasan" aria-label="Ringkasan">
+  <li><strong>{{ perubahan|length }}</strong>bug diperbaiki</li>
+  <li><strong>{{ perubahan|selectattr('tingkat', 'equalto', 'Tinggi')|list|length }}</strong>tingkat tinggi</li>
+  <li><strong>{{ perubahan|selectattr('tingkat', 'equalto', 'Sedang')|list|length }}</strong>tingkat sedang</li>
+</ul>
+
+{% for p in perubahan %}
+<article class="panel perubahan" id="{{ p.kode|lower }}">
+  <header class="perubahan-kepala">
+    <span class="kode">{{ p.kode }}</span>
+    <h2>{{ p.judul }}</h2>
+    <span class="tingkat tingkat-{{ p.tingkat|lower }}">Tingkat {{ p.tingkat|lower }}</span>
+  </header>
+
+  <dl>
+    <dt>Gejala di v1</dt><dd>{{ p.gejala }}</dd>
+    <dt>Penyebab</dt><dd>{{ p.penyebab }}</dd>
+    <dt>Perbaikan di v2</dt><dd>{{ p.perbaikan }}</dd>
+    <dt>Pembuktian</dt><dd><code>{{ p.uji }}</code></dd>
+  </dl>
+
+  <div class="banding">
+    <figure>
+      <figcaption>Versi 1.0 (bug)</figcaption>
+      <pre class="kode-sebelum"><code>{{ p.sebelum }}</code></pre>
+    </figure>
+    <figure>
+      <figcaption>Versi 2.0 (diperbaiki)</figcaption>
+      <pre class="kode-sesudah"><code>{{ p.sesudah }}</code></pre>
+    </figure>
+  </div>
+</article>
+{% endfor %}
+{% endblock %}
