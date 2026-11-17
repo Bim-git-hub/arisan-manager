@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block judul %}Arisan Manager{% endblock %} - v{{ VERSI }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="kepala">
+    <div class="kepala-isi">
+      <a class="merek" href="{{ url_for('beranda') }}">Arisan Manager</a>
+      <nav class="nav" aria-label="Navigasi utama">
+        <a href="{{ url_for('beranda') }}"{% if request.endpoint == 'beranda' %} aria-current="page"{% endif %}>Beranda</a>
+        {% if ADA_CHANGELOG %}
+        <a href="{{ url_for('changelog') }}"{% if request.endpoint == 'changelog' %} aria-current="page"{% endif %}>Perubahan v1 ke v2</a>
+        {% endif %}
+      </nav>
+      <span class="cap">Versi {{ VERSI }}</span>
+    </div>
+  </header>
+
+  <main class="halaman">
+    {% with pesan = get_flashed_messages(with_categories=true) %}
+      {% for kategori, isi in pesan %}
+        <p class="pesan pesan-{{ kategori }}" role="status">{{ isi }}</p>
+      {% endfor %}
+    {% endwith %}
+    {% block isi %}{% endblock %}
+  </main>
+
+  <footer class="kaki">Proyek belajar pengujian perangkat lunak. Data tersimpan di file data.json.</footer>
+</body>
+</html>

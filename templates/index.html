@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block isi %}
+<div class="tata">
+  <section class="utama" aria-labelledby="judul-anggota">
+    <h1 id="judul-anggota">Anggota arisan</h1>
+
+    <form class="isian" method="post" action="{{ url_for('tambah_anggota') }}">
+      <label for="nama">Nama anggota</label>
+      <div class="isian-baris">
+        <input id="nama" name="nama" maxlength="60" autocomplete="off" required>
+        <button class="tombol tombol-utama" type="submit">Tambah anggota</button>
+      </div>
+    </form>
+
+    {% if data.anggota %}
+    <ul class="daftar">
+      {% for a in data.anggota %}
+      <li class="baris">
+        {# BUG #3: nama ditampilkan dengan filter safe sehingga HTML tidak di-escape #}
+        <span class="nama">{{ a.nama|safe }}</span>
+        {% if a.menang %}<span class="stempel">Sudah menang</span>{% endif %}
+        {% if a.bayar %}<span class="pil pil-lunas">Lunas</span>{% else %}<span class="pil pil-belum">Belum bayar</span>{% endif %}
+        <form method="post" action="{{ url_for('ubah_bayar', anggota_id=a.id) }}">
+          <button class="tombol" type="submit">{{ 'Batalkan pembayaran' if a.bayar else 'Tandai sudah bayar' }}</button>
+        </form>
+        <form method="post" action="{{ url_for('hapus_anggota', anggota_id=a.id) }}">
+          <button class="tombol tombol-bahaya" type="submit">Hapus</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="kosong">Belum ada anggota. Isi nama pertama di atas untuk memulai arisan.</p>
+    {% endif %}
+  </section>
+
+  <aside class="samping" aria-label="Iuran, undian, dan riwayat">
+    <section class="panel">
+      <h2>Iuran per anggota</h2>
+      <p class="nilai-kecil">
+        {% if data.iuran is not none %}{{ data.iuran|rupiah }}{% else %}Belum diatur{% endif %}
+      </p>
+      <form class="isian" method="post" action="{{ url_for('atur_iuran') }}">
+        <label for="iuran">Nominal baru (rupiah)</label>
+        <div class="isian-baris">
+          <input id="iuran" name="iuran" inputmode="numeric" autocomplete="off" required>
+          <button class="tombol" type="submit">Simpan iuran</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel panel-undi">
+      <h2>Kas ronde ini</h2>
+      <p class="kas">{{ kas|rupiah }}</p>
+      <p class="keterangan">{{ data.anggota|selectattr('bayar')|list|length }} dari {{ data.anggota|length }} anggota sudah bayar.</p>
+      <form method="post" action="{{ url_for('undi') }}">
+        <button class="tombol tombol-gelap tombol-lebar" type="submit">Undi pemenang</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="judul-riwayat">
+      <h2 id="judul-riwayat">Riwayat pemenang</h2>
+      {% if data.riwayat %}
+      <ol class="riwayat" reversed>
+        {% for r in data.riwayat|reverse %}
+        <li class="tiket">
+          <span class="tiket-ronde" aria-label="Ronde {{ r.ronde }}">{{ r.ronde }}</span>
+          {# BUG #3: nama pemenang juga memakai filter safe #}
+          <span class="tiket-nama">{{ r.nama|safe }}</span>
+          <span class="tiket-kas">Membawa pulang {{ r.kas|rupiah }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="kosong">Belum ada undian. Pemenang pertama akan muncul di sini.</p>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}
